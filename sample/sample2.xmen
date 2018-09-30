@@ -1,0 +1,38 @@
+# sample xMensur file 2
+# [] and {} can be used to define MAIN, GROUP section
+# <> is used to define BRANCH, MERGE
+# | is an alias for TONEHOLE
+
+# blank lines are skipped
+
+v1 = 1.0
+
+[
+20,18,1,コメント
+18,16,1,
+16,8,10,
+8,4,5,
+4,6.5,50
+7,11.5, 200, mouthpipe
+|,WATERKEY,0.3
+11.5,12, 180,
+12,12, 55, 
+<,V1LOOP,v1
+12.8,12.8,10,# v1 port
+>,V1LOOP,v1
+12,16,400,
+16,32,200,
+32,64,100,
+64,128,50,
+128,256,25
+256,300,10,
+OPEN_END
+]
+
+{,V1LOOP
+12, 12, 180,
+}
+
+{,WATERKEY
+8,8,3,
+}
