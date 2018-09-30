@@ -1,4 +1,3 @@
-__precompile(false)__
 """
 calcimp.jl
 Julia version of calcimp.
@@ -10,9 +9,12 @@ include("mensur.jl")
 using .Mensur
 
 # command line parser
-
+fpath = ARGS[1]
+# @show fpath
 # execute 
-
+mentable = men_readfile(fpath)
 # print output
+
+men_printtable(mentable)
 
 # end 
