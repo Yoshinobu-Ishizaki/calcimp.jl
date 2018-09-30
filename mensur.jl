@@ -4,6 +4,9 @@ __precompile__(false)
 Mensur handling module.
 """
 module Mensur
+using DataFrames
+using SpecialFunctions
+using Struve
 
 # constants
 OPEN = 1
@@ -140,7 +143,7 @@ function getfbr(cur::Men)
     return(cur.params[:df], cur.params[:db],cur.params[:r],cur.params[:comment])
 end
 
-function men_bykeyword!(cur::Men, wd::Array{String,1})
+function men_bykeyword(cur::Men, wd::Array{String,1})
     w = wd[1]
     if length(wd) > 1
         name = wd[2]
@@ -161,10 +164,9 @@ function men_bykeyword!(cur::Men, wd::Array{String,1})
             ratio = 1.0
         end
         men = men_create(db,db,0.0,"",gr )
-        men_setchildinfo!(cur,w,name,ratio)
+        men_setchildinfo!(men,w,name,ratio)
     end
-    cur = men_append!(cur,men)
-    return(cur)
+    return(men)
 end
 
 function men_setchild!(cur::Men, sid::Men)
@@ -238,7 +240,8 @@ function men_build(lns)
                     end
                 elseif w in type_keys
                     # BRANCH, MERGE, SPLIT, etc
-                    cur = men_bykeyword!(cur,wd)
+                    men = men_bykeyword(cur,wd)
+                    cur = men_append!(cur,men)
                 elseif length(wd) > 2
                     # normal "df,db,r,cmt" like string
                     df = eval(Meta.parse(wd[1]))
@@ -288,10 +291,10 @@ function men_print(men::Men)
 
     while men != nothing
         df,db,r,c = getfbr(men)
-        println(df*1000.0,",",db*1000.0,",",r*1000.0,",",c)
         if men.child != nothing
             println(men.childinfo[:type],",",men.childinfo[:name],",",men.childinfo[:ratio])
-            men = men.next # skip one !
+        else
+            println(df*1000.0,",",db*1000.0,",",r*1000.0,",",c)
         end
         men = men.next
     end
@@ -312,8 +315,109 @@ function men_printtable(mentable)
     end
 end
 
+function update_calcparams!(params)
+    GMM = 1.4  # specific head ratio
+    PR = 0.72  # Prandtl number
+
+    tp = params["temperature"]
+
+    params["c0"] = c0 = 331.45 * sqrt(tp / 273.16 + 1)
+    params["rho"] = ρ = 1.2929 * (273.16 / (273.16 + tp))
+    params["rhoc0"] = ρc0 = ρ * c0
+    params["mu"] = μ = (18.2 + 0.0456*(tp - 25)) * 1.0e-6  # viscosity constant. Linear approximation from Scientific Dictionary.
+    params["nu"] = ν= μ/ρ  # dynamic viscous constant.
+    params["dmp"] = (1+(GMM-1)/sqrt(PR))
+end
+
+function radimp(wf::Float64, dia::Float64, params)
+    if wf > 0
+        if dia == 0.0
+            zr = complex(Inf) # closed end
+        else
+            if radtype == "NONE"
+                zr = complex(0)  # simple open end impedance
+            else
+                s = dia^2*pi/4.0
+                k = wf/params["c0"]
+                x = k*dia
+                rhoc0 = params["rhoc0"]
+
+                re = rhoc0/s*(1 - besselj1(x)/x*2)  # 1st order bessel function.
+                img = rhoc0/s*Struve.H0(x)/x*2  # 1st order struve function.
+
+                if params["radiation"] == "BAFFLE":
+                    zr = complex(re,imag)
+                elseif params["radiation"] == "PIPE"
+                    # real is about 0.5 times and imaginary is 0.7 times when without frange.
+                    zr = complex(0.5*re,0.7*img)
+                end
+            end
+        end
+        return(zr) 
+    end
+end
+
+"""recursively called function to calculate impedance at each mensur node"""
+function calc_impedance!(wf::Float64,men::Men, params::Dict{String,Any})
+    if men.child != nothing
+        child_impedance(wf, men, params)
+    elseif men.next != nothing
+        men.vars[:zo] = men.next.vars[:zi]
+    end
+# writing code here!!!
+    if men.vars[:r] > 0.0
+        men.tm = calc_transmission(wf, men.df, men.db, men.r, _c0, _rhoc0, _nu)
+        men.zi = zo2zi(men.tm, men.zo)
+    else:
+        # length 0
+        men.zi = men.zo
+
+end
+
+"""calculate impedance at given frequency """
+function impedance!(wf::Float64, men::Men, params::Dict{String,Any})
+    if wf > 0
+        cur = men_end(men)
+        # end impedance
+        cur.vars[:zo] = radimp(wf, cur.params[:df],params)
+
+        while cur != men
+            calc_impedance!(wf, cur,params)
+            cur = cur.prev
+        end
+        calc_impedance!(wf, men,params)
+        return(men.vars[:zi])
+    end
+end
+
+function input_impedance(mentable,params)
+    minf = parse(Float64,params["minfreq"])
+    maxf = parse(Float64,params["maxfreq"])
+    sf = parse(Float64,params["stepfreq"])
+    tp = parse(Float64,params["temperature"])
+    radtype = params["radiation"]
+
+    update_calcparams!(params)
+
+    imped = DataFrames()
+    frq = range(minf, stop=maxf, step=sf)
+    imped[:frq] = frq
+    imped[:imp] = zeros(Complex,length(frq))
+
+    men = mentable["MAIN"]
+
+    ss = men.params[:df]^2 * pi/4
+
+    for i in 1:length(frq)
+        wf = frq[i]*2*pi
+        imped[:imp][i] = impedance!(wf,men,params)*ss
+    end
+
+    return(imped)
+end
+
 # export structs, functions
 export Men
-export men_create, men_append!, men_top, men_end, men_readfile, men_printtable
+export men_create, men_append!, men_top, men_end, men_readfile, men_printtable, input_impedance
 
 end # module
