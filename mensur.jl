@@ -6,6 +6,7 @@ Mensur handling module.
 module Mensur
 using DataFrames
 using SpecialFunctions
+using LinearAlgebra
 using Struve
 
 # constants
@@ -60,6 +61,22 @@ mutable struct Men
     
     # incomplete constructor
     Men() = new()
+end
+
+function isbranch(t::String)
+    return(type_keywords[t] == :branch)
+end
+
+function issplit(t::String)
+    return(type_keywords[t] == :split)
+end
+
+function isaddon(t::String)
+    return(type_keywords[t] == :addon)
+end
+
+function ismerge(t::String)
+    return(type_keywords[t] == :merge)
 end
 
 """
@@ -315,6 +332,19 @@ function men_printtable(mentable)
     end
 end
 
+function joint_mensur(men::Men)
+    if isbranch(men.childinfo[:type])
+        e = men_end(men.child)
+        if e.parent != nothing & ismerge(e.parent.childinfo[:type])
+            return(e.parent)
+        else
+            return(nothing)
+        end
+    else
+        return(nothing)
+    end
+end
+
 function update_calcparams!(params)
     GMM = 1.4  # specific head ratio
     PR = 0.72  # Prandtl number
@@ -357,6 +387,146 @@ function radimp(wf::Float64, dia::Float64, params)
     end
 end
 
+function calc_transmission(wf::Float64,men::Men, params::Dict{String,Any})
+    df = men.params[:df]
+    db = men.params[:db]
+    r = men.params[:r]
+    dmp = params["dmp"]
+    nu = params["nu"]
+    c0 = params["c0"]
+    rhoc0 = params["rhoc0"]
+
+    d = (df + db)*0.5
+    aa = dmp * sqrt(2*wf*nu)/c0/d  # wall dumping factor
+    k = sqrt((wf/c0)*(wf/c0 - 2*complex(-1,1)*aa))  # complex wave number including wall dumping
+    x = k * r
+    cc = cos(x)
+    ss = sin(x)
+
+    tm = zeros(Complex,2,2)
+
+    if df != db:
+        # taper
+        r1 = df*0.5
+        r2 = db*0.5
+        dr = r2-r1
+
+        tm[1,1] = (r2*x*cc - dr*ss)/(r1*x)
+        tm[1,2] = im*rhoc0*ss/(pi*r1*r2)
+        tm[2,1] = -im*pi*(dr*dr*x*cc - (dr*dr + x*x*r1*r2)*ss)/(x*x*rhoc0)
+        tm[2,2] = (r1*x*cc + dr*ss)/(r2*x)
+    else
+        # straight
+        s1 = pi/4*df*df
+        tm[1,1] = tm[2,2] = cc
+        tm[1,2] = im*rhoc0*ss/s1
+        tm[2,1] = im*s1*ss/rhoc0
+    end
+
+    return(tm)
+end
+
+function zo2zi(tm::Array{Complex,2,2},zo::Complex)
+    if !isinf(zo)
+        zi = (tm[1,1]*zo + tm[1,2])/(tm[2,1]*zo + tm[2,2])
+    else
+        if tm[2,1] != 0
+            zi = tm[1,1]/tm[2,1]
+        else
+            zi = complex(Inf)
+        end
+    end
+    return(zi)
+end
+
+function transmission_matrix(men1::Men, men2::Union{Men,Nothing})
+    if men2 == nothing
+        men = men_end(men1)
+        men = men.prev
+    else
+        men = men2
+    end
+
+    m = Matrix{ComplexF64}(I,2,2) # eye 
+    while men != nothing & men != men1
+        m *= men.vars[:tm]
+        men = men.prev
+    end
+    m *= men1.vars[:tm]
+    
+    return(m)
+end
+
+function child_impedance(wf::Float64,men::Men, params::Dict{String,Any})
+    if issplit(men.childinfo[:type])
+        # split (tonehole) type.
+        input_impedance(wf, men.child)  # recursive call for input impedance
+        if men.childinfo[:ratio] == 0
+            men.vars[:zo] = men.next.vars[:zi]
+        else
+            z1 = men.child.vars[:zi] / men.childinfo[:ratio]  # adjust blending ratio
+            z2 = men.next.vars[:zi]
+            if z1 == zero(Complex) & z2 == zero(Complex)
+                z = zero(Complex)
+            else
+                z = z1*z2/(z1+z2)
+            end
+            men.vars[:zo] = z
+        end
+    elseif isbranch(men.childinfo[:type]) & men.childinfo[:ratio] > 0
+        # multiple tube connection
+        input_impedance(wf, men.child)
+        m = transmission_matrix(men.child, nothing)
+        jnt = joint_mensur(men)
+        n = transmission_matrix(men.next, jnt)
+
+        # section area adjustment
+        if men.childinfo[:ratio] == 1
+            m[1,2] = complex(Inf)
+        else
+            m[1,2] /= (1 - men.childinfo[:ratio])
+        end
+        m[2,1] *= (1 - men.childinfo[:ratio])
+
+        if men.childinfo[:ratio] == 0
+            n[1,2] = complex(Inf)
+        else
+            n[1,2] /= men.childinfo[:ratio]
+        end
+        n[2,1] *= men.childinfo[:ratio]
+
+        z2 = jnt.next.vars[:zi]
+        dv = (m[2,2]*n[1,2] + m[1,2]*n[2,2] + (
+            (m[1,2] + n[1,2])*(m[2,1] + n[2,1]) - (m[1,1] - n[1,1])*(m[2,2] - n[2,2]))*z2)
+        if dv != zero(Complex)
+            z = (m[1,2]*n[1,2] + (m[1,2]*n[1,1] + m[1,1]*n[1,2])*z2)/dv
+        else
+            z = 0
+        end
+        men.vars[:zo] = z
+    elseif isaddon(men.childinfo[:type]) & men.childinfo[:ratio] > 0
+        # this routine will not called until 'ADDON(LOOP)' type of connection is implemented.
+        input_impedance(wf, men.child)
+        m = transmission_matrix(men.child, nothing)
+        z1 = m[1,2]/(m[1,2]*m[2,1]-(1-m[1,1])*(1-m[2,2]))
+        z2 = men.next.vars[:zi]
+        if men.childinfo[:ratio] == 0
+            men.vars[:zo] = men.next.vars[:zi]
+        elseif men.childinfo[:ratio] == 1
+            men.vars[:zo] = z1
+        else
+            z1 /= men.childinfo[:ratio]
+            z2 /= (1 - men.childinfo[:ratio])
+            if z1 == zero(Complex) & z2 == zero(Complex)
+                z = zero(Complex)
+            else
+                z = z1*z2/(z1+z2)
+            end
+            men.vars[:zo] = z
+        end
+    end
+end
+
 """recursively called function to calculate impedance at each mensur node"""
 function calc_impedance!(wf::Float64,men::Men, params::Dict{String,Any})
     if men.child != nothing
@@ -364,14 +534,14 @@ function calc_impedance!(wf::Float64,men::Men, params::Dict{String,Any})
     elseif men.next != nothing
         men.vars[:zo] = men.next.vars[:zi]
     end
-# writing code here!!!
-    if men.vars[:r] > 0.0
-        men.tm = calc_transmission(wf, men.df, men.db, men.r, _c0, _rhoc0, _nu)
-        men.zi = zo2zi(men.tm, men.zo)
-    else:
-        # length 0
-        men.zi = men.zo
 
+    if men.vars[:r] > 0.0
+        men.vars[:tm] = calc_transmission(wf,men,params)
+        men.vars[:zi] = zo2zi(men.vars[:tm], men.vars[:zo])
+    else
+        # length 0
+        men.vars[:zi] = men.vars[:zo]
+    end
 end
 
 """calculate impedance at given frequency """
@@ -410,7 +580,7 @@ function input_impedance(mentable,params)
 
     for i in 1:length(frq)
         wf = frq[i]*2*pi
-        imped[:imp][i] = impedance!(wf,men,params)*ss
+        imped[:imp][i] = ss * impedance!(wf,men,params)
     end
 
     return(imped)

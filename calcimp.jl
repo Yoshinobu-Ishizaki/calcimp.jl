@@ -84,6 +84,7 @@ function main()
         # execute 
         imped = input_impedance(mentable,params)
         # print output
+        print_impedance(imped)
     end
     
     men_printtable(mentable) # debug
