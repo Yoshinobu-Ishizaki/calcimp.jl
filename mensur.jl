@@ -364,7 +364,7 @@ function radimp(wf::Float64, dia::Float64, params)
         if dia == 0.0
             zr = complex(Inf) # closed end
         else
-            if radtype == "NONE"
+            if params["radiation"] == "NONE"
                 zr = complex(0)  # simple open end impedance
             else
                 s = dia^2*pi/4.0
@@ -375,7 +375,7 @@ function radimp(wf::Float64, dia::Float64, params)
                 re = rhoc0/s*(1 - besselj1(x)/x*2)  # 1st order bessel function.
                 img = rhoc0/s*Struve.H0(x)/x*2  # 1st order struve function.
 
-                if params["radiation"] == "BAFFLE":
+                if params["radiation"] == "BAFFLE"
                     zr = complex(re,imag)
                 elseif params["radiation"] == "PIPE"
                     # real is about 0.5 times and imaginary is 0.7 times when without frange.
@@ -405,7 +405,7 @@ function calc_transmission(wf::Float64,men::Men, params::Dict{String,Any})
 
     tm = zeros(Complex,2,2)
 
-    if df != db:
+    if df != db
         # taper
         r1 = df*0.5
         r2 = db*0.5
@@ -426,7 +426,7 @@ function calc_transmission(wf::Float64,men::Men, params::Dict{String,Any})
     return(tm)
 end
 
-function zo2zi(tm::Array{Complex,2,2},zo::Complex)
+function zo2zi(tm::Array{Complex,2},zo::Complex)
     if !isinf(zo)
         zi = (tm[1,1]*zo + tm[1,2])/(tm[2,1]*zo + tm[2,2])
     else
@@ -535,7 +535,7 @@ function calc_impedance!(wf::Float64,men::Men, params::Dict{String,Any})
         men.vars[:zo] = men.next.vars[:zi]
     end
 
-    if men.vars[:r] > 0.0
+    if men.params[:r] > 0.0
         men.vars[:tm] = calc_transmission(wf,men,params)
         men.vars[:zi] = zo2zi(men.vars[:tm], men.vars[:zo])
     else
@@ -557,19 +557,21 @@ function impedance!(wf::Float64, men::Men, params::Dict{String,Any})
         end
         calc_impedance!(wf, men,params)
         return(men.vars[:zi])
+    else
+        return(zero(Complex))
     end
 end
 
 function input_impedance(mentable,params)
-    minf = parse(Float64,params["minfreq"])
-    maxf = parse(Float64,params["maxfreq"])
-    sf = parse(Float64,params["stepfreq"])
-    tp = parse(Float64,params["temperature"])
+    minf = params["minfreq"]
+    maxf = params["maxfreq"]
+    sf = params["stepfreq"]
+    tp = params["temperature"]
     radtype = params["radiation"]
 
     update_calcparams!(params)
 
-    imped = DataFrames()
+    imped = DataFrame()
     frq = range(minf, stop=maxf, step=sf)
     imped[:frq] = frq
     imped[:imp] = zeros(Complex,length(frq))
@@ -580,7 +582,7 @@ function input_impedance(mentable,params)
 
     for i in 1:length(frq)
         wf = frq[i]*2*pi
-        imped[:imp][i] = ss * impedance!(wf,men,params)
+        imped[:imp][i] = ss .* impedance!(wf,men,params)
     end
 
     return(imped)

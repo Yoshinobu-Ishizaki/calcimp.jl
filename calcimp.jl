@@ -43,7 +43,13 @@ function parse_opt(args)
     for i in 2:l
         tt = split(args[i],":")
         if tt[1] in keys(params)
-            params[tt[1]] = tt[2]
+            if tt[1] == "minfreq" | tt[1] == "maxfreq" | tt[1] == "stepfreq" | tt[1] == "temperature"
+                params[tt[1]] = parse(Float64,tt[2])
+            elseif tt[1] == "version" | tt[1] == "help"
+                params[tt[1]] = parse(Bool,tt[2])
+            else
+                params[tt[1]] = tt[2]
+            end
         end
     end
     return(params)
@@ -60,6 +66,13 @@ function set_output!(fpath, params)
         bdy, ext = splitext(fpath)
         fout = bdy * ".imp"
         params["output"] = fout
+    end
+end
+
+function print_impedance(imped::AbstractDataFrame)
+    println("freq,real,imag,mag")
+    for r in eachrow(imped)
+        println(r[:frq],",",real(r[:imp]),",",imag(r[:imp]),",",20log10(abs(r[:imp])))
     end
 end
 
@@ -86,9 +99,8 @@ function main()
         # print output
         print_impedance(imped)
     end
-    
-    men_printtable(mentable) # debug
+    # men_printtable(mentable) # debug
 end
-    
+
 main()
 # end 
