@@ -1,4 +1,4 @@
-__precompile__()
+__precompile__(false)
 
 """
 Mensur handling module.
@@ -335,7 +335,7 @@ end
 function joint_mensur(men::Men)
     if isbranch(men.childinfo[:type])
         e = men_end(men.child)
-        if e.parent != nothing & ismerge(e.parent.childinfo[:type])
+        if e.parent != nothing && ismerge(e.parent.childinfo[:type])
             return(e.parent)
         else
             return(nothing)
@@ -448,7 +448,7 @@ function transmission_matrix(men1::Men, men2::Union{Men,Nothing})
     end
 
     m = Matrix{ComplexF64}(I,2,2) # eye 
-    while men != nothing & men != men1
+    while men != nothing && men != men1
         m *= men.vars[:tm]
         men = men.prev
     end
@@ -460,22 +460,23 @@ end
 function child_impedance(wf::Float64,men::Men, params::Dict{String,Any})
     if issplit(men.childinfo[:type])
         # split (tonehole) type.
-        input_impedance(wf, men.child)  # recursive call for input impedance
+        # @show men.child
+        impedance!(wf,men.child,params)  # recursive call for input impedance
         if men.childinfo[:ratio] == 0
             men.vars[:zo] = men.next.vars[:zi]
         else
             z1 = men.child.vars[:zi] / men.childinfo[:ratio]  # adjust blending ratio
             z2 = men.next.vars[:zi]
-            if z1 == zero(Complex) & z2 == zero(Complex)
+            if z1 == zero(Complex) && z2 == zero(Complex)
                 z = zero(Complex)
             else
                 z = z1*z2/(z1+z2)
             end
             men.vars[:zo] = z
         end
-    elseif isbranch(men.childinfo[:type]) & men.childinfo[:ratio] > 0
+    elseif isbranch(men.childinfo[:type]) && men.childinfo[:ratio] > 0
         # multiple tube connection
-        input_impedance(wf, men.child)
+        impedance!(wf, men.child,params)
         m = transmission_matrix(men.child, nothing)
         jnt = joint_mensur(men)
         n = transmission_matrix(men.next, jnt)
@@ -504,9 +505,9 @@ function child_impedance(wf::Float64,men::Men, params::Dict{String,Any})
             z = 0
         end
         men.vars[:zo] = z
-    elseif isaddon(men.childinfo[:type]) & men.childinfo[:ratio] > 0
+    elseif isaddon(men.childinfo[:type]) && men.childinfo[:ratio] > 0
         # this routine will not called until 'ADDON(LOOP)' type of connection is implemented.
-        input_impedance(wf, men.child)
+        impedance!(wf, men.child,params)
         m = transmission_matrix(men.child, nothing)
         z1 = m[1,2]/(m[1,2]*m[2,1]-(1-m[1,1])*(1-m[2,2]))
         z2 = men.next.vars[:zi]
@@ -517,7 +518,7 @@ function child_impedance(wf::Float64,men::Men, params::Dict{String,Any})
         else
             z1 /= men.childinfo[:ratio]
             z2 /= (1 - men.childinfo[:ratio])
-            if z1 == zero(Complex) & z2 == zero(Complex)
+            if z1 == zero(Complex) && z2 == zero(Complex)
                 z = zero(Complex)
             else
                 z = z1*z2/(z1+z2)
