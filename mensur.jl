@@ -1,4 +1,4 @@
-__precompile__(false)
+__precompile__()
 
 """
 Mensur handling module.
@@ -373,7 +373,7 @@ function radimp(wf::Float64, dia::Float64, params)
                 rhoc0 = params["rhoc0"]
 
                 re = rhoc0/s*(1 - besselj1(x)/x*2)  # 1st order bessel function.
-                img = rhoc0/s*Struve.H0(x)/x*2  # 1st order struve function.
+                img = rhoc0/s*Struve.H(1,x)/x*2  # 1st order struve function.
 
                 if params["radiation"] == "BAFFLE"
                     zr = complex(re,imag)
@@ -582,7 +582,7 @@ function input_impedance(mentable,params)
 
     for i in 1:length(frq)
         wf = frq[i]*2*pi
-        imped[:imp][i] = ss .* impedance!(wf,men,params)
+        imped[:imp][i] = ss * impedance!(wf,men,params)
     end
 
     return(imped)
