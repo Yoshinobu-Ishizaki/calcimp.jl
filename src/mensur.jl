@@ -1,6 +1,3 @@
-"""
-Mensur handling module.
-"""
 using DataFrames
 using SpecialFunctions
 using LinearAlgebra
@@ -19,9 +16,6 @@ calcparams = Dict(
     "stepfreq"=>2.5,
     "temperature"=>24.0,
     "radiation"=>"PIPE",
-    "output"=>"",
-    "version"=>false,
-    "help"=>false
 )
 
 type_keywords = Dict("SPLIT"=>:split, 
@@ -353,7 +347,7 @@ function joint_mensur(men::Men)
     end
 end
 
-function update_calcparams!(params)
+function updatecalcparams!(params)
     GMM = 1.4  # specific head ratio
     PR = 0.72  # Prandtl number
 
@@ -578,7 +572,7 @@ function input_impedance(mentable,params)
     tp = params["temperature"]
     radtype = params["radiation"]
 
-    update_calcparams!(params)
+    updatecalcparams!(params)
 
     imped = DataFrame()
     frq = range(minf, stop=maxf, step=sf)
@@ -629,5 +623,3 @@ function calcimp(fpath::String, params)
 end
 
 calcimp(fpath::String) = calcimp(fpath, calcparams)
-
-end # module
