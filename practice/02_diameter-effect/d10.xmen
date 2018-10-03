@@ -1,0 +1,6 @@
+# simple tube with various diameter
+d = 10
+[
+d,d,1000,
+OPEN_END
+]

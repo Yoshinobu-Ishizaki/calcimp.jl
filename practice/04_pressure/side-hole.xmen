@@ -1,0 +1,12 @@
+# to demonstrate peak search
+[
+    10,10,250,
+    |,SH,1,
+    10,10,750,
+    OPEN_END
+]
+
+{,SH
+6,6,3,
+OPEN_END
+}
