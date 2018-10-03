@@ -1,9 +1,6 @@
-__precompile__(false)
-
 """
 Mensur handling module.
 """
-module Mensur
 using DataFrames
 using SpecialFunctions
 using LinearAlgebra
@@ -15,6 +12,17 @@ CLOSE = 0
 HALF = 0.5
 HEAD = 0
 LAST = 1
+
+calcparams = Dict(
+    "minfreq"=>0.0,
+    "maxfreq"=>2000.0,
+    "stepfreq"=>2.5,
+    "temperature"=>24.0,
+    "radiation"=>"PIPE",
+    "output"=>"",
+    "version"=>false,
+    "help"=>false
+)
 
 type_keywords = Dict("SPLIT"=>:split, 
     "TONEHOLE"=>:split,
@@ -589,8 +597,37 @@ function input_impedance(mentable,params)
     return(imped)
 end
 
-# export structs, functions
-export Men
-export men_create, men_append!, men_top, men_end, men_readfile, men_printtable, input_impedance
+# function print_params(param)
+#     for (k,v) in pairs(param)
+#         println(k,":",v)
+#     end
+# end
+
+# function set_output!(fpath, params)
+#     if length(params["output"]) == 0
+#         bdy, ext = splitext(fpath)
+#         fout = bdy * ".imp"
+#         params["output"] = fout
+#     end
+# end
+
+# function print_impedance(imped::AbstractDataFrame)
+#     println("freq,real,imag,mag")
+#     for r in eachrow(imped)
+#         println(r[:frq],",",real(r[:imp]),",",imag(r[:imp]),",",20log10(abs(r[:imp])))
+#     end
+# end
+
+"Get current calculation parameters dictionary."
+getcalcparams() = return(calcparams)
+
+"Calculate input impedance for given xmensur file."
+function calcimp(fpath::String, params)
+    mentable = men_readfile(fpath)
+    imped = input_impedance(mentable,params)
+    return(imped)
+end
+
+calcimp(fpath::String) = calcimp(fpath, calcparams)
 
 end # module
