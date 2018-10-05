@@ -29,6 +29,6 @@ include("mensur.jl")
 
 # export structs, functions
 export Men
-export calcimp, getcalcparams
+export calcimp, initcalcparam
 
 end 
