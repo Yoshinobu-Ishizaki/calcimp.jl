@@ -8,7 +8,7 @@ It reads .xmen file and return (frq,imp) dataframe.
 
 # Requirements
 
-DataFrame.jl, LinearAlgebra.jl, SpecialFunctions.jl, Struve.jl
+[DataFrames.jl](https://github.com/JuliaData/DataFrames.jl), [SpecialFunctions.jl](https://github.com/JuliaMath/SpecialFunctions.jl), [Struve.jl](https://github.com/gwater/Struve.jl)
 
 # Basic usage
 
@@ -31,7 +31,7 @@ prm = initcalcparams(fmin=0.0, fmax=2000, fstep=2.5, tmpr=24.0, "PIPE")
 
 # Examples
 
-See [practice](./practice) folder.
+See [example](./example) folder.
 
 # ChangeLog
 
