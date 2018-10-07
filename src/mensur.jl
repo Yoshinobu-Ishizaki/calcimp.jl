@@ -372,20 +372,19 @@ Example:
     initcalcparam(minfreq,maxfreq,stepfreq,temperature,radiation)
     initcalcparam(0.0,2000.0,2.5,"PIPE/BAFFLE/NONE")
 """
-function initcalcparam(minfreq=0.0, maxfreq=2000.0, stepfreq=2.5, tp=24.0, radiation = "PIPE" )
-
-    c0 = 331.45 * sqrt(tp / 273.16 + 1)
-    rho = 1.2929 * (273.16 / (273.16 + tp))
+function initcalcparam(;minfreq=0.0, maxfreq=2000.0, stepfreq=2.5, temperature=24.0, radiation="PIPE")
+    c0 = 331.45 * sqrt(temperature / 273.16 + 1)
+    rho = 1.2929 * (273.16 / (273.16 + temperature))
     rhoc0 = rho * c0
-    mu = (18.2 + 0.0456*(tp - 25)) * 1.0e-6  # viscosity constant. Linear approximation from Scientific Dictionary.
+    mu = (18.2 + 0.0456*(temperature - 25)) * 1.0e-6  # viscosity constant. Linear approximation from Scientific Dictionary.
     nu = mu/rho  # dynamic viscous constant.
     dmp = (1+(GMM-1)/sqrt(PR)) # wall dumping factor
     
-    return  Dict(
+    Dict(
         :minfreq=>minfreq,
         :maxfreq=>maxfreq,
         :stepfreq=>stepfreq,
-        :temperature=>tp,
+        :temperature=>temperature,
         :radiation=>radiation,
         :c0=>c0,
         :rho =>rho,
@@ -617,36 +616,18 @@ function input_impedance(mentable;params...)
     return(imped)
 end
 
-function checkparams(params)
-    # param check
-    prm = initcalcparam() # default
-    for k in keys(params)
-        if k in keys(prm)
-            prm[k] = params[k]
-        else
-            throw(UndefKeywordError(k))
-        end
-    end
-    return prm
-end
-
 "Calculate input impedance for given xmensur file."
 function calcimp(fpath::String; params...)
     mentable = readxmen(fpath)
-    prm = checkparams(params)
+    prm = initcalcparam(;params...)
     imped = input_impedance(mentable;prm...)
     imped[:mag] = 20log10.(abs.(imped[:imp]))
     return(imped)
 end
 
-# function calcimp(fpath::String)
-#     prm = initcalcparam()
-#     calcimp(fpath;prm...)
-# end
-
 "Reuse read data"
-function calcimp(mtable::Array{Men};params...)
-    prm = checkparams(params)
+function calcimp(mtable::Dict{String,Men};params...)
+    prm = initcalcparam(;params...)
     imped = input_impedance(mtable;prm...)
     imped[:mag] = 20log10.(abs.(imped[:imp]))
     return(imped)
