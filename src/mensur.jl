@@ -410,7 +410,7 @@ function radimp(wf::Float64, dia::Float64; c0::Float64, rhoc0::Float64, radiatio
                 img = rhoc0/s*Struve.H(1,x)/x*2  # 1st order struve function.
 
                 if radiation == "BAFFLE"
-                    zr = complex(re,imag)
+                    zr = complex(re,img)
                 elseif radiation == "PIPE"
                     # real is about 0.5 times and imaginary is 0.7 times when without frange.
                     zr = complex(0.5*re,0.7*img)
