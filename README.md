@@ -37,6 +37,7 @@ See [example](./example) folder.
 
 version | date | description
 ----|------|------------
+0.4.0 | 08.10.2018 | Added calcprs (calculate pressure distribution).
 0.3.0 | 08.10.2018 | Added magnitude column to output.
 0.2.0 | 07.10.2018 | Tune up. Runs almost as fast as C.
 0.1.0 | 06.10.2018 | First completion 

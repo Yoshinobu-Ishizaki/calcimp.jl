@@ -3,7 +3,7 @@ using SpecialFunctions
 using LinearAlgebra
 using Struve
 
-version = v"0.3.0"
+version = v"0.4.0"
 
 # constants
 const OPEN = 1
@@ -633,3 +633,82 @@ function calcimp(mtable::Dict{String,Men};params...)
     return(imped)
 end
 
+function actualnext(men::Men)
+    if men.ctype == "BRANCH" && men.cratio > HALF
+        m = men.child
+    elseif men.next != nothing
+        m = men.next
+    else
+        m = men.parent 
+    end
+    m 
+end
+
+function slice_mensur!(men::Men, step::Float64)
+    if step > 0
+        while men != nothing
+            if men.r > step
+                if men.db != men.df
+                    db2 = (men.db - men.df)/men.r * step + men.df
+                else
+                    db2 = men.db
+                end
+                r2 = men.r - step
+                nw = men_create(db2, men.db, r2, men.cm, men.gr)
+                men_insert!(men, nw)
+                # change self data
+                men.r = step
+                men.db = db2
+            end
+            men = actualnext(men)
+        end
+    end
+end
+
+function calc_pressure(p::Float64,men::Men)
+    v = complex([p,0.0]) # initial pressure, volume speed pair
+    x = 0.0 # length from top
+    prs = DataFrame(x=[],D=[],p=[],U=[]) # x, dia, pressure, volume velosity
+    push!(prs,(x,men.df, v[1],v[2]))
+    
+    while men != nothing
+        # @show men.tm
+        if men.child != nothing
+            push!(prs, (x,0.0, v[1],v[2]))
+        end
+        if men.r > 0
+            v = inv(men.tm)*v
+        end
+        x += men.r
+        push!(prs,(x,men.df,v[1],v[2]))
+        men = actualnext(men)
+    end
+    return prs
+end
+
+function calcprs(mentable, frequency::Float64; slice=1.0, temperature=24.0, pressure = 2.0e-2)
+    slice_mensur!(mentable["MAIN"], slice/1000.0) # unit conv here
+    
+    # calc impedance first
+    prm = initcalcparam(temperature=temperature)
+    wf = 2pi*frequency
+    men = mentable["MAIN"]
+    impedance!(wf,men;prm...)
+    
+    prs = calc_pressure(pressure,men) # return (x,p,U) dataframe
+    prs[:x] .*= 1000.0 # x unit conv
+    prs[:D] .*= 1000.0 # dia unit conv
+    return prs
+end
+
+"""
+    calcprs(filepath, frequency; kwargs...)
+    
+    Calculate pressure distribution for given frequency.
+    If mensur will be sliced by slice value.
+    Pressure at end must be supplied (default = 2.0e-2 Pa = 60dBSPL).
+"""
+function calcprs(fpath::String,frequency::Float64; params...)
+    mentable = readxmen(fpath)
+    return calcprs(mentable,frequency; params...)
+end
