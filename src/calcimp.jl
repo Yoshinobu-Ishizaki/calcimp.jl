@@ -24,7 +24,6 @@ calcimp(file.xmen, params) # with custom params
 ```
 """
 module Calcimp
-version = v"0.2.0"
 
 include("mensur.jl")
 

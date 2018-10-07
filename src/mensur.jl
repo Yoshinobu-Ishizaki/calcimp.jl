@@ -3,6 +3,8 @@ using SpecialFunctions
 using LinearAlgebra
 using Struve
 
+version = v"0.3.0"
+
 # constants
 const OPEN = 1
 const CLOSE = 0
@@ -619,6 +621,7 @@ end
 function calcimp(fpath::String; params...)
     mentable = men_readfile(fpath)
     imped = input_impedance(mentable;params...)
+    imped[:mag] = 20log10.(abs.(imped[:imp]))
     return(imped)
 end
 
