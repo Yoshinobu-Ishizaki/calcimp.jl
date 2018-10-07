@@ -705,8 +705,11 @@ end
     calcprs(filepath, frequency; kwargs...)
     
     Calculate pressure distribution for given frequency.
-    If mensur will be sliced by slice value.
+    Mensur will be sliced by `slice=` value (default 1mm).
     Pressure at end must be supplied (default = 2.0e-2 Pa = 60dBSPL).
+
+    Returns dataframe of (x, D, p, U),
+    where x:length from top, D,p,U are diameter,pressure,volume velosity at x respectively.
 """
 function calcprs(fpath::String,frequency::Float64; params...)
     mentable = readxmen(fpath)
