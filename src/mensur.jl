@@ -175,7 +175,7 @@ function eat_comment(s)
 end
 
 function getfbr(cur::Men)
-    return(cur.params[:df], cur.params[:db],cur.params[:r],cur.params[:comment])
+    return(cur.df, cur.db,cur.r,cur.cm)
 end
 
 function men_bykeyword(cur::Men, wd::Array{String,1})
@@ -187,7 +187,7 @@ function men_bykeyword(cur::Men, wd::Array{String,1})
         ratio = float(eval(Meta.parse(wd[3])))
     end
     df,db,r,c = getfbr(cur)
-    gr = cur.params[:group]
+    gr = cur.gr
 
     men = nothing
     if type_keywords[w] == :close
@@ -319,7 +319,7 @@ function men_readfile(path)
 end
 
 function men_print(men::Men)
-    gr = men.params[:group]
+    gr = men.group
     if gr != "MAIN"
         println("GROUP,",gr)
     end
