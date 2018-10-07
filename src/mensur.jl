@@ -310,7 +310,7 @@ function men_build(lns)
     return(mentable) 
 end
 
-function men_readfile(path)
+function readxmen(path)
     lns = readlines(path)
 
     mentable = []
@@ -617,16 +617,38 @@ function input_impedance(mentable;params...)
     return(imped)
 end
 
+function checkparams(params)
+    # param check
+    prm = initcalcparam() # default
+    for k in keys(params)
+        if k in keys(prm)
+            prm[k] = params[k]
+        else
+            throw(UndefKeywordError(k))
+        end
+    end
+    return prm
+end
+
 "Calculate input impedance for given xmensur file."
 function calcimp(fpath::String; params...)
-    mentable = men_readfile(fpath)
-    imped = input_impedance(mentable;params...)
+    mentable = readxmen(fpath)
+    prm = checkparams(params)
+    imped = input_impedance(mentable;prm...)
     imped[:mag] = 20log10.(abs.(imped[:imp]))
     return(imped)
 end
 
-function calcimp(fpath::String)
-    prm = initcalcparam()
-    calcimp(fpath;prm...)
+# function calcimp(fpath::String)
+#     prm = initcalcparam()
+#     calcimp(fpath;prm...)
+# end
+
+"Reuse read data"
+function calcimp(mtable::Array{Men};params...)
+    prm = checkparams(params)
+    imped = input_impedance(mtable;prm...)
+    imped[:mag] = 20log10.(abs.(imped[:imp]))
+    return(imped)
 end
 
