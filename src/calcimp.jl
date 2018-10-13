@@ -29,6 +29,6 @@ include("mensur.jl")
 
 # export structs, functions
 export Men
-export calcimp, initcalcparam, readxmen, calcprs
+export calcimp, initcalcparam, readxmen, calcprs, dBSPL
 
 end 
