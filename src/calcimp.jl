@@ -26,9 +26,11 @@ calcimp(file.xmen, params) # with custom params
 module Calcimp
 
 include("mensur.jl")
+include("utilities.jl")
 
 # export structs, functions
 export Men
-export calcimp, initcalcparam, readxmen, calcprs, dBSPL
+export calcimp, initcalcparam, readxmen, calcprs # mensur.jl
+export dBSPL, hztonote, notetohz # utilities.jl
 
 end 

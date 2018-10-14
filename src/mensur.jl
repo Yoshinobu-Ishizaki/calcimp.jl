@@ -43,9 +43,6 @@ const group_keywords = Dict("MAIN"=>:main,
 type_keys = keys(type_keywords)
 group_keys = keys(group_keywords)
 
-"""Calculate dBSPL of pressure x"""
-dBSPL(x) = 20log10(abs(x/2.0e-5))
-
 """
 Men struct which contains basic unit for expressing mensur structure.
 """
