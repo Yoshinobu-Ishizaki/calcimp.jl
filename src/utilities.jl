@@ -1,7 +1,7 @@
-static notenames=Dict(0=>"A",1=>"Bb",2=>"B",3=>"C",4=>"Db",5=>"D",6=>"Eb",
-7=>"E",8=>"F",9=>"Gb",10=>"G",11=>"Ab")
+notenames = Dict(0=>"A",1=>"Bb",2=>"B",3=>"C",4=>"Db",5=>"D",
+    6=>"Eb",7=>"E",8=>"F",9=>"Gb",10=>"G",11=>"Ab")
 
-static convlist = Dict("C#"=>"Db","D#"=>"Eb","F#"=>"Gb","G#"=>"Ab","A#"=>"Bb")
+convlist = Dict("C#"=>"Db","D#"=>"Eb","F#"=>"Gb","G#"=>"Ab","A#"=>"Bb")
 
 """Calculate dBSPL of pressure x"""
 dBSPL(x) = 20log10(abs(x/2.0e-5))
